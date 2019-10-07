@@ -2,13 +2,13 @@
 all: mandel
 
 mandel: mandel.o bitmap.o
-	gcc mandel.o bitmap.o -o mandel -lpthread
+	g++ mandel.o bitmap.o -o mandel -lpthread
 
-mandel.o: mandel.c
-	gcc -Wall -g -c mandel.c -o mandel.o
+mandel.o: mandel.cpp
+	g++ -Wall -g -c mandel.cpp -o mandel.o
 
 bitmap.o: bitmap.c
-	gcc -Wall -g -c bitmap.c -o bitmap.o
+	g++ -Wall -g -c bitmap.c -o bitmap.o
 
 clean:
 	rm -f mandel.o bitmap.o mandel

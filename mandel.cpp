@@ -7,10 +7,14 @@
 #include <math.h>
 #include <errno.h>
 #include <string.h>
+#include <cstdlib>
+#include <thread>
 
 int iteration_to_color( int i, int max );
 int iterations_at_point( double x, double y, int max );
-void compute_image( struct bitmap *bm, double xmin, double xmax, double ymin, double ymax, int max );
+void compute_image( struct bitmap *bm, double xmin, double xmax, double ymin, double ymax, int max , int no_threads );
+void threaded_renderer (struct bitmap *bm, double xmin, double xmax, double ymin, double ymax, int max , int start, int end);
+
 
 void show_help()
 {
@@ -44,11 +48,12 @@ int main( int argc, char *argv[] )
 	int    image_width = 500;
 	int    image_height = 500;
 	int    max = 1000;
+	int no_threads = 1; 
 
 	// For each command line argument given,
 	// override the appropriate configuration value.
 
-	while((c = getopt(argc,argv,"x:y:s:W:H:m:o:h"))!=-1) {
+	while((c = getopt(argc,argv,"x:y:s:W:H:m:n:o:h"))!=-1) {
 		switch(c) {
 			case 'x':
 				xcenter = atof(optarg);
@@ -58,6 +63,9 @@ int main( int argc, char *argv[] )
 				break;
 			case 's':
 				scale = atof(optarg);
+				break;
+			case 'n':
+				no_threads = atoi(optarg);
 				break;
 			case 'W':
 				image_width = atoi(optarg);
@@ -79,7 +87,7 @@ int main( int argc, char *argv[] )
 	}
 
 	// Display the configuration of the image.
-	printf("mandel: x=%lf y=%lf scale=%lf max=%d outfile=%s\n",xcenter,ycenter,scale,max,outfile);
+	printf("mandel: x=%lf y=%lf scale=%lf max=%d no_threads=%d outfile=%s\n",xcenter,ycenter,scale,max,no_threads,outfile);
 
 	// Create a bitmap of the appropriate size.
 	struct bitmap *bm = bitmap_create(image_width,image_height);
@@ -88,7 +96,7 @@ int main( int argc, char *argv[] )
 	bitmap_reset(bm,MAKE_RGBA(0,0,255,0));
 
 	// Compute the Mandelbrot image
-	compute_image(bm,xcenter-scale,xcenter+scale,ycenter-scale,ycenter+scale,max);
+	compute_image(bm,xcenter-scale,xcenter+scale,ycenter-scale,ycenter+scale,max , no_threads);
 
 	// Save the image in the stated file.
 	if(!bitmap_save(bm,outfile)) {
@@ -104,30 +112,25 @@ Compute an entire Mandelbrot image, writing each point to the given bitmap.
 Scale the image to the range (xmin-xmax,ymin-ymax), limiting iterations to "max"
 */
 
-void compute_image( struct bitmap *bm, double xmin, double xmax, double ymin, double ymax, int max )
+void compute_image( struct bitmap *bm, double xmin, double xmax, double ymin, double ymax, int max , int no_threads)
 {
-	int i,j;
+	int i;
+	std::thread thread_list[no_threads];
 
-	int width = bitmap_width(bm);
-	int height = bitmap_height(bm);
+	for(i = 0; i< no_threads ; i++)
+	{
 
-	// For every pixel in the image...
-
-	for(j=0;j<height;j++) {
-
-		for(i=0;i<width;i++) {
-
-			// Determine the point in x,y space for that pixel.
-			double x = xmin + i*(xmax-xmin)/width;
-			double y = ymin + j*(ymax-ymin)/height;
-
-			// Compute the iterations at that point.
-			int iters = iterations_at_point(x,y,max);
-
-			// Set the pixel in the bitmap.
-			bitmap_set(bm,i,j,iters);
-		}
+		int start = i*(bitmap_height(bm)/no_threads);
+		int end = start + (bitmap_height(bm)/no_threads);
+		thread_list[i] = std::thread(threaded_renderer, bm, xmin, xmax, ymin, ymax, max , start, end );
 	}
+	
+	for(i = 0; i< no_threads ; i++)
+	{
+		thread_list[i].join();
+	}
+
+
 }
 
 /*
@@ -169,5 +172,31 @@ int iteration_to_color( int i, int max )
 }
 
 
+void threaded_renderer(struct bitmap *bm, double xmin, double xmax, double ymin, double ymax, int max , int start, int end)
+{
 
+	int i,j;
+
+	int width = bitmap_width(bm);
+	int height = bitmap_height(bm);
+	
+	for(j=start;j<end;j++) {
+
+		for(i=0;i<width;i++) {
+
+			// Determine the point in x,y space for that pixel.
+			double x = xmin + i*(xmax-xmin)/width;
+			double y = ymin + j*(ymax-ymin)/height;
+
+			// Compute the iterations at that point.
+			int iters = iterations_at_point(x,y,max);
+
+			// Set the pixel in the bitmap.
+			bitmap_set(bm,i,j,iters);
+		}
+	}
+
+
+
+}
 

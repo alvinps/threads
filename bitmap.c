@@ -15,10 +15,10 @@ struct bitmap * bitmap_create( int w, int h )
 {
 	struct bitmap *m;
 
-	m = malloc(sizeof *m);
+	m =(bitmap *) malloc(sizeof *m);
 	if(!m) return 0;
 
-	m->data = malloc(w*h*sizeof(int));
+	m->data =(int*) malloc(w*h*sizeof(int));
 	if(!m->data) {
 		free(m);
 		return 0;
@@ -130,7 +130,7 @@ int bitmap_save( struct bitmap *m, const char *path )
 	int padlength = 4 - (m->width*3)%4;
 	if(padlength==4) padlength=0;
 
-	scanline = malloc(header.width*3);
+	scanline =(unsigned char *) malloc(header.width*3);
 
 	for(j=0;j<m->height;j++) {
 		s = scanline;
